@@ -1,0 +1,29 @@
+{
+    "manifest_version": 2,
+    "name": "GoGo Steam Trade Helper",
+    "version": "1.0",
+    "icons": {
+		"256": "Other-steam-red-icon.png"
+    },
+    "permissions": [
+        "activeTab",
+        "tabs",
+        "https://*/",
+		"webRequest",
+		"webRequestBlocking"
+    ],
+    "browser_action": {
+        "default_title": "GoGo Steam Trade Helper",
+        "default_icon": "Other-steam-red-icon.png",
+        "default_popup": "popup.html"
+    },
+    "background": {
+        "scripts": ["background.js"]
+    },
+    "content_scripts": [
+        {
+            "matches": ["http://*/*", "https://*/*"],
+            "js": ["jquery-2.1.0.min.js", "regexSelector.js", "content.js"]
+        }
+    ]
+}
