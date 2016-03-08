@@ -10,7 +10,9 @@
         "tabs",
         "https://*/",
 		"webRequest",
-		"webRequestBlocking"
+		"webRequestBlocking",
+		"storage",
+		"unlimitedStorage"
     ],
     "browser_action": {
         "default_title": "GoGo Steam Trade Helper",
@@ -18,7 +20,7 @@
         "default_popup": "popup.html"
     },
     "background": {
-        "scripts": ["background.js"]
+        "scripts": ["jquery-2.1.0.min.js", "background.js"]
     },
     "content_scripts": [
         {

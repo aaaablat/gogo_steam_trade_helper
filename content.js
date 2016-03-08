@@ -13,6 +13,9 @@
 // - средняя цена мгновенного выкупа.
 // - отображать roi цены мгновенного выкупа.
 // 
+// !!!!ЗАМЕТКИ!!!!:
+// - Сделать переодическую подгрузку инфы из background.js, чтобы разгрузить контент-скрипт.
+// - Сделать подгрузку инфы СРАЗУ О ВСЕХ предметах на странице.
 // 
 // 
 
@@ -408,100 +411,7 @@ function replaceItemWearRussianToEnglish (_str)
 		.replace ('Закаленное в боях',			'Battle-Scarred');
 }
 
-/**
- * Получить цены прямо из стима ОДНИМ ЗАПРОСОМ СРАЗУ НА ВСЕ ПРЕДМЕТЫ НА МАРКЕТЕ.
- * Запрос на "http://steamcommunity.com/market/search/render/?query=".
- */
-function getPricesFromSteamRender (_countPages)
-{
-	var promises = [];
-	
-	// Проходим цикл из всех страниц.
-	for (pageNumber = 0; pageNumber < _countPages; pageNumber += 100)
-	{
-		var promise = new Promise(function(resolve, reject) {
-			// Эта функция будет вызвана автоматически
-			// В ней можно делать любые асинхронные операции,
-			// А когда они завершатся — нужно вызвать одно из:
-			// resolve(результат) при успешном выполнении
-			// reject(ошибка) при ошибке
-			
-			
-			// Шлем запрос
-			var resultOfThisPromise = {};
-			jQuery.ajax ({
-				url : 'https://steamcommunity.com/market/search/render/?query=&start=' + pageNumber + '&count=100&search_descriptions=0&sort_column=popular&sort_dir=desc&appid=730&category_730_ItemSet%5B%5D=any&category_730_ProPlayer%5B%5D=any&category_730_StickerCapsule%5B%5D=any&category_730_TournamentTeam%5B%5D=any&category_730_Weapon%5B%5D=any',
-				data : {},
-				success : function (data)
-				{
-					$('<div id="container">' + data.results_html + '</div>').find ('a.market_listing_row_link').each(function (i)
-					{
-						var itemRowHtml = $(this).html ();
-						
-						var lowest_price	= parseFloat ($(itemRowHtml).find ('span.normal_price:nth-child(2)').html ().replace (',', '.').replace (' pуб.', ''));
-						var quantity		= parseFloat ($(itemRowHtml).find ('.market_listing_num_listings_qty').html ().replace (',', ''));
-						var nameRussian		= $(itemRowHtml).find ('span.market_listing_item_name').html ();
-						var nameEnglish		= decodeURIComponent ($(this).attr ('href').replace ('https://steamcommunity.com/market/listings/730/', '')).replace (/\?filter=.+/, '');
-						var nameCombo		= replaceItemWearRussianToEnglish (nameRussian);
-						
-						var currentObjectData = {
-							'lowest_price'	: lowest_price,
-							'quantity'		: quantity,
-							'nameRussian'	: nameRussian,
-							'nameEnglish'	: nameEnglish,
-							'nameCombo'		: nameCombo,
-							'pageNumber'	: pageNumber,
-							'overview'		: 'nameEnglish:   ' + nameEnglish + "\nnameRussian:   " + nameRussian + "\nNameCombo:     " + nameCombo + "\nPrice:         " + lowest_price + " руб. \nQuantity:      " + quantity + "\nPageNumber:    " + pageNumber
-						};
-						
-						resultOfThisPromise[nameEnglish] = currentObjectData;
-						resultOfThisPromise[nameRussian] = currentObjectData;
-						resultOfThisPromise[nameCombo]	= currentObjectData;
-						
-						// НЕ ЗНАЮ КАК ЭТА ХРЕНЬ РАБОТАЕТ, НО В ГУГЛ ХРОМЕ БУДЕТ ВЫВОДИТЬСЯ ОСОБАЯ ТАБЛИЧКА С ПЕРЕМЕННОЙ ЦИКЛА, ОЧЕНЬ УДОБНО И КРАСИВО.
-						console.log ('Loading pages (' + _countPages + ')...');
-						
-						//alert (resultOfThisPromise[nameRussian][nameEnglish] + " -  count:" + resultOfThisPromise[nameRussian][lowest_price] + ". quantity:" + resultOfThisPromise[nameRussian][quantity]);
-					});
-				},
-				error : function (data)
-				{
-					console.log ('    page loading error.');
-				},
-				complete : function (data)
-				{
-					resolve (resultOfThisPromise);
-				},
-				type : 'GET',
-				dataType : 'json',
-				async : true
-			});
-		});
-		
-		promises.push (promise);
-	}
-	
-	// Обрабатываем результаты выполнения ВСЕХ промисов.
-	Promise.all(promises).then(promisesResultsHandler);
-}
 
-/**
- * Объединить результаты выполнения промисов в один массив.
- * (результаты каждого промиса должны быть также массивом).
- */
-function mergePromisesResults (_promisesResultsArray)
-{
-	var bingo = [];
-		
-	for (x = 0; x < _promisesResultsArray.length; x++)
-	{
-		Object.keys(_promisesResultsArray[x]).forEach(function(key, index) {
-			bingo[key] = this[key];
-		}, _promisesResultsArray[x]);
-	}
-	
-	return bingo;
-}
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -529,8 +439,17 @@ function mainContent ()
 		// 
 		
 		// Загрузим цены
-		console.time ('LOADING_PRICES');
-		getPricesFromSteamRender (6000);
+		//console.time ('LOADING_PRICES');
+		//getPricesFromSteamRender (6000);
+		
+		// Запрашиваем у background.js информацию о ценах.
+		chrome.runtime.sendMessage({target: "getMePrices"}, function(response) {
+			var prices = JSON.parse (response.prices);
+			
+			// Запускаем отрисовку интерфейса и работу с ценами.
+			//printPrices ();
+			pricesHandler (prices);
+		});
     }
     //---------------------------------------------------------------------------------------------------------------------------------------------------------
     // CSGOLOUNGE.COM
@@ -612,16 +531,22 @@ function mainContent ()
 }
 
 
+function printPrices (_pricesAfterMerge)
+{
+	console.log ('Printing prices...');
+	Object.keys(_pricesAfterMerge).forEach(function(key, index) {
+		console.log (key + ' - ' + this[key]);
+	}, _pricesAfterMerge);
+}
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------------
 /**
- * Обработчик загрузки промисов/
+ * Обработчик цен.
  */
-function promisesResultsHandler (_results)
+function pricesHandler (_results)
 {
 	// Грузим цены с рендера стима.
-	var prices = mergePromisesResults (_results);
-	console.timeEnd ('LOADING_PRICES');
+	var prices = _results;
 		
 	// Название предмета
 	var itemName = $ ('title').html ().replace (" | Магазин Counter-Strike: Global Offensive", "");
