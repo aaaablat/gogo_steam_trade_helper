@@ -432,16 +432,6 @@ function mainContent ()
     // Скрипт работает только на csgo.tm/item/*
     if (document.location.toString ().match (/^https:\/\/csgo\.tm\/item\//i))
     {
-		// !!!!ВНИМАНИЕ!!!!
-		// Надо написать многопоточный загрузчик цен стима, выдающий массив с русскими и английскими названиями.
-		// 
-		// 
-		// 
-		
-		// Загрузим цены
-		//console.time ('LOADING_PRICES');
-		//getPricesFromSteamRender (6000);
-		
 		// Запрашиваем у background.js информацию о ценах.
 		chrome.runtime.sendMessage({target: "getMePrices"}, function(response) {
 			var prices = JSON.parse (response.prices);
@@ -451,6 +441,54 @@ function mainContent ()
 			pricesHandler (prices);
 		});
     }
+	
+	// Страница со списком товаров (пока только отсортированных по выгоде).
+	else if (document.location.toString ().match (/^https:\/\/csgo\.tm\/.*rs=[0-9]+;[0-9]+$/i))
+	{
+		// Запрашиваем у background.js информацию о ценах.
+		chrome.runtime.sendMessage({target: "getMePrices"}, function(response) {
+			var prices = JSON.parse (response.prices);
+			
+			//-------------------------
+			// Проходимся по всем предметам на странице и собираем их цены.
+			var pricesShop = [];
+			var pricesReal = [];
+			$('div.imageblock > div.price').each(function (i)
+			{
+				pricesShop.push (parseFloat ($(this).text ().replace ('.', ',')));
+			});
+			
+			// Проходимся по всем предметам на странице и показываем их профит.
+			var itemNumber = -1;
+			$('.item.hot > div.name').each(function (i)
+			{
+				++itemNumber;
+				var itemName		= replaceItemWearRussianToEnglish ($(this).text ().trim ());
+				var itemPriceShop	= pricesShop[itemNumber];
+				
+				if (prices[itemName] != undefined)
+				{
+					var itemPriceReal	= prices[itemName]['lowest_price'];
+					var itemPrifitHtml	= getColorPercentageProfitHtmlString (itemPriceShop, itemPriceReal);
+
+					$(this).html (itemPrifitHtml + ' - ' + '#' + itemName + '#');
+					pricesReal[itemNumber] = itemPriceReal;
+				}
+				else
+				{
+					pricesReal[itemNumber] = '???';
+				}
+			});
+			
+			// Проходимся по ценам еще раз, чтобы добавить цену стима рядом.
+			var itemNumberNew = 0;
+			$('div.imageblock > div.price').each(function (i)
+			{
+				var prrrr = parseFloat ($(this).text ().replace ('.', ','));
+				$(this).html (prrrr + ' / ' + pricesReal[itemNumberNew++]);
+			});
+		});
+	}
     //---------------------------------------------------------------------------------------------------------------------------------------------------------
     // CSGOLOUNGE.COM
     else if (document.location.toString ().match (/^http:\/\/csgolounge\.com\/addtrade$/i))
@@ -652,15 +690,15 @@ function pricesHandler (_results)
 	document.getElementById ('cost_to_steam_diff').innerHTML = ((costShop / infoDirect.sell_order_table_info.min_price) * 100).toFixed (0) + "%";
 
 	// Отображаем ROI - возврат затраченных денег.
-	var roi = (infoDirect.sell_order_table_info.min_price * 0.85 / costShop) * 100;
-	var profitWhite = (roi - 100) * costShop / 100;
+	var roi			= getRoi (costShop, infoDirect.sell_order_table_info.min_price);
+	var profitWhite	= getRealProfit (roi, costShop);
 	document.getElementById ('cost_roi').innerHTML = roi.toFixed (0) + "%";
 	document.getElementById ('cost_profit_part_1').innerHTML = (roi - 100).toFixed (0) + "%";
 	document.getElementById ('cost_profit_part_2').innerHTML = profitWhite.toFixed (2) + " руб";
 
 	// roi мгновенного выкупа.
-	var roiFast = (infoDirect.buy_order_table_info.max_price * 0.85 / costShop) * 100;
-	var profitWhiteFast = (roiFast - 100) * costShop / 100;
+	var roiFast			= getRoi (costShop, infoDirect.buy_order_table_info.max_price);
+	var profitWhiteFast	= getRealProfit (roiFast, costShop);
 	document.getElementById ('cost_profit_part_1_fast').innerHTML = (roiFast - 100).toFixed (0) + "%";
 	document.getElementById ('cost_profit_part_2_fast').innerHTML = profitWhiteFast.toFixed (2) + " руб";
 
@@ -668,4 +706,24 @@ function pricesHandler (_results)
 	// Изменяем цвета в зависимости от того, является ли сделка прибыльной.
 	roi > 100 ? $ ('#cost_profit_part_1').css ({'color' : 'green'}) : $ ('#cost_profit_part_1').css ({'color' : 'red'});
 	roiFast > 100 ? $ ('#cost_profit_part_1_fast').css ({'color' : 'green'}) : $ ('#cost_profit_part_1_fast').css ({'color' : 'red'});
+}
+
+function getRoi (_shopPrice, _lowestPrice)
+{
+	return parseFloat ((parseFloat (_lowestPrice) * 0.85 / parseFloat (_shopPrice)) * 100);
+}
+
+function getRealProfit (_roi, _shopPrice)
+{
+	return parseFloat ((parseFloat (_roi) - 100) * parseFloat (_shopPrice) / 100);
+}
+
+function getColorPercentageProfitHtmlString (_shopPrice, _lowestPrice)
+{
+	var roi = getRoi (_shopPrice, _lowestPrice);
+	var color = (roi > 100 ? 'green' : 'red');
+	
+	var html = '<span style="font-weight: bold; font-size: 17px; color: ' + color + ';">' + (roi - 100).toFixed (0) + "%" + '</span>';
+	
+	return html;
 }

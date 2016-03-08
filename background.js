@@ -44,10 +44,12 @@ chrome.tabs.executeScript ({file: "content.js"});
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Число страниц для загрузки каталога стима.
-var countPages = 2000;
+var countPages			= 6000;
+var isAsync				= true;
+var updateTimeMinutes	= 5;
 
 // Первый раз грузим каталог сразу, чтобы не ждать по минуте при каждом запуске.
-getPricesFromSteamRender (countPages);
+getPricesFromSteamRender (countPages, isAsync);
 
 var i = 0;
 var refreshIntervalId	= setInterval (function ()
@@ -56,7 +58,7 @@ var refreshIntervalId	= setInterval (function ()
 
 	//---------------
 	// Запускаем коллбеки получения цен.
-	getPricesFromSteamRender (countPages);
+	getPricesFromSteamRender (countPages, isAsync);
 	//---------------
 
 	/*
@@ -66,7 +68,7 @@ var refreshIntervalId	= setInterval (function ()
 		clearInterval (refreshIntervalId);
 	}
 	*/
-}, 180 * 1000);
+}, updateTimeMinutes * 60 * 1000);
 
 
 
@@ -75,7 +77,7 @@ var refreshIntervalId	= setInterval (function ()
  * Получить цены прямо из стима циклом запросов по 100 предметов. Всего ~6000 предметов, 60 запросов.
  * Запрос на "http://steamcommunity.com/market/search/render/?query=".
  */
-function getPricesFromSteamRender (_countPages)
+function getPricesFromSteamRender (_countPages, _isAsync)
 {
 	console.time ('LOADING_PRICES');
 	var promises = [];
@@ -138,7 +140,7 @@ function getPricesFromSteamRender (_countPages)
 				},
 				type : 'GET',
 				dataType : 'json',
-				async : true
+				async : _isAsync
 			});
 		});
 		
