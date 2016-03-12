@@ -46,7 +46,7 @@ chrome.tabs.executeScript ({file: "content.js"});
 // Число страниц для загрузки каталога стима.
 var countPages			= 6000;
 var isAsync				= true;
-var updateTimeMinutes	= 5;
+var updateTimeMinutes	= 30;
 
 // Первый раз грузим каталог сразу, чтобы не ждать по минуте при каждом запуске.
 getPricesFromSteamRender (countPages, isAsync);
