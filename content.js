@@ -501,14 +501,14 @@ function mainContent ()
 
         //------------------------------------------------------------------------------
         // Внедряем дополнительный код
-        $ ('head').after ('<style>'
+        $ ('head').append ('<style>'
                 + '.myMainDiv	{box-sizing: border-box; width: 100%; padding: 3px; padding-left: 15px; background: #CCC; border: 1px solid #F11}'
                 + '.myButton	{padding: 5px; font-size: 17px; height: 50px;}'
                 + 'textarea		{box-sizing: border-box; width: 50%; margin-top: 3px;}'
                 + '.myTable		{border-collapse: collapse;}'
                 //+ '.myTable td	{border: 2px solid #000;}'
                 + '.myTable td	{vertical-align: middle; background: #CCC; padding: 3px 5px 3px 0px;}'
-                + '</style>');
+		+ '</style>');
 
         $ ('header').after ('<div class="myMainDiv">'
                 + '<table class="myTable">'
@@ -530,7 +530,7 @@ function mainContent ()
                 + '</table>'
                 + '<textarea id="logTextarea" rows="10">Log...</textarea>'
 
-                + '</div>');
+		+ '</div>');
 
         // Обрабатываем нажатия кнопок.
         // ЗАПУСК.
@@ -610,47 +610,54 @@ function pricesHandler (_results)
 	//$('.item-page-right').css ({'width' : '100%', 'background-color' : 'yellow'});
 
 	//-------------------------------------------------------------
-	// Добавим дополнительную инфу на страницу
-	$ ('.item-tags').after ('<div style="background: #e3e0ca; padding: 10px; font-size: 20px; line-height: 23px;">'
+	// Внедряем стили.
+	$ ('head').append ('<style>'
+		+ '.myMainDiv			{background: #e3e0ca; padding: 10px; font-size: 20px; line-height: 23px;}'
+		+ 'table.info_table		{width: 100%; border-collapse: collapse;}'
+		+ '.info_table td		{border: 1px solid black;}'
+		+ '.center				{text-align: center;}'
+		+ 'a.market_link		{text-decoration: none;}'
+	+ '</style>');
+	
+	// Внедряем таблицу.
+	$ ('.item-tags').after ('<div class="myMainDiv">'
+		+ '<table class="info_table">'
+		+ '<tr><td colspan=4 class="center">"<b><span id="englishname">UNKNOWN</span></b>".</td>'
 
-	+ '<table style="width: 100%; border-collapse: collapse;" border="1">'
-	+ '<tr><td colspan=4 style="text-align: center;">"<b><span id="englishname">UNKNOWN</span></b>".</td>'
+		+ '<tr><td colspan=2></td><td colspan=2 class="center"><a id="steamPageUrl" class="market_link" target="_blank" href="UNKNOWN">&gt&gtGO TO THE MARKET&lt&lt</a></td></tr>'
+		+ '<tr><td colspan=4 class="center"><b>ЦЕНА:</b></td></tr>'
 
-	+ '<tr><td colspan=2></td><td colspan=2><br></td></tr>'
-	+ '<tr><td colspan=4 style="text-align: center;"><b>ЦЕНА:</b></td></tr>'
+		+ '<tr><td>Минимальная:<br><b><span id="lowest_price_1">UNKNOWN</span> руб.</b></td>'
+		+ '<td>Средняя:<br><span id="average_price_sell">UNKNOWN</span> руб.</td>'
+		+ '<td>Автовыкуп:<br><b><span id="best_price_buy">UNKNOWN</span> руб.</b></td>'
+		+ '<td>Средняя автовыкупа:<br><span id="average_price_buy">UNKNOWN</span> руб.</td></tr>'
 
-	+ '<tr><td>Минимальная:<br><b><span id="lowest_price_1">UNKNOWN</span> руб.</b></td>'
-	+ '<td>Средняя:<br><span id="average_price_sell">UNKNOWN</span> руб.</td>'
-	+ '<td>Автовыкуп:<br><b><span id="best_price_buy">UNKNOWN</span> руб.</b></td>'
-	+ '<td>Средняя автовыкупа:<br><span id="average_price_buy">UNKNOWN</span> руб.</td></tr>'
+		+ '<tr><td>diff: <b><span id="diff_1">UNKNOWN</span>%</b></td>'
+		+ '<td>diff_auto: <b><span id="diff_auto">UNKNOWN</span>%</b></td>'
+		+ '<td colspan=2 class="center">diff: <b><span id="diff_2">UNKNOWN</span>%</b></td></tr>'
 
-	+ '<tr><td>diff: <b><span id="diff_1">UNKNOWN</span>%</b></td>'
-	+ '<td>diff_auto: <b><span id="diff_auto">UNKNOWN</span>%</b></td>'
-	+ '<td colspan=2 style="text-align: center;">diff: <b><span id="diff_2">UNKNOWN</span>%</b></td></tr>'
+		+ '<tr><td colspan=2></td><td colspan=2><br></td></tr>'
+		+ '<tr><td colspan=2>Объем:</td><td colspan=2><b><span id="volume_1">UNKNOWN</span></b>.</td>'
+		+ '<tr><td colspan=2>Цена от стима:</td><td colspan=2><b><span id="cost_to_steam_diff">UNKNOWN</span></b>.</td>'
+		+ '<tr><td colspan=2>ROI:</td><td colspan=2><span id="cost_roi">UNKNOWN</span>.</td>'
 
-	+ '<tr><td colspan=2></td><td colspan=2><br></td></tr>'
-	+ '<tr><td colspan=2>Объем:</td><td colspan=2><b><span id="volume_1">UNKNOWN</span></b>.</td>'
-	+ '<tr><td colspan=2>Цена от стима:</td><td colspan=2><b><span id="cost_to_steam_diff">UNKNOWN</span></b>.</td>'
-	+ '<tr><td colspan=2>ROI:</td><td colspan=2><span id="cost_roi">UNKNOWN</span>.</td>'
+		+ '<tr><td colspan=2></td><td colspan=2><br></td></tr>'
+		+ '<tr><td colspan=2>Прибыль чистыми:</td>'
+		+ '<td><b><span id="cost_profit_part_1">UNKNOWN</span></b></td>'
+		+ '<td><b>(<span id="cost_profit_part_2">UNKNOWN</span>)</b></td></tr>'
 
-	+ '<tr><td colspan=2></td><td colspan=2><br></td></tr>'
-	+ '<tr><td colspan=2>Прибыль чистыми:</td>'
-	+ '<td><b><span id="cost_profit_part_1">UNKNOWN</span></b></td>'
-	+ '<td><b>(<span id="cost_profit_part_2">UNKNOWN</span>)</b></td></tr>'
+		+ '<tr><td colspan=2>Прибыль чистыми с автовыкупа:</td>'
+		+ '<td><b><span id="cost_profit_part_1_fast">UNKNOWN</span></b></td>'
+		+ '<td><b>(<span id="cost_profit_part_2_fast">UNKNOWN</span>)</b></td></tr>'
 
-	+ '<tr><td colspan=2>Прибыль чистыми с автовыкупа:</td>'
-	+ '<td><b><span id="cost_profit_part_1_fast">UNKNOWN</span></b></td>'
-	+ '<td><b>(<span id="cost_profit_part_2_fast">UNKNOWN</span>)</b></td></tr>'
-
-	+ '</table>'
-	+ ''
-	+ ''
-	+ ''
-	+ ''
-	+ ''
-	+ '<br>'
-	//+ '<iframe id="myframe" src="" width="100%" height="1000" align="left">Ваш браузер не поддерживает плавающие фреймы!</iframe><br>'
-
+		+ '</table>'
+		+ ''
+		+ ''
+		+ ''
+		+ ''
+		+ ''
+		+ '<br>'
+		//+ '<iframe id="myframe" src="" width="100%" height="1000" align="left">Ваш браузер не поддерживает плавающие фреймы!</iframe><br>'
 	+ '</div>');
 
 	//-------------------------------------------------------------
@@ -681,6 +688,9 @@ function pricesHandler (_results)
 
 	// Отображаем оригинальное английское имя предмета.
 	document.getElementById ('englishname').innerHTML = itemObject['nameEnglish'];
+	
+	// И ссылку на страницу торговой площадки стима с предметом.
+	document.getElementById ('steamPageUrl').setAttribute ('href', 'http://steamcommunity.com/market/listings/730/' + encodeURIComponent (itemObject['nameEnglish']));
 
 	//-------------------------------------------
 	// Отображаем цену и количество имеющихся в продаже предметов (из поиска).

@@ -43,13 +43,12 @@ chrome.tabs.executeScript ({file: "content.js"});
 
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-// Число страниц для загрузки каталога стима.
-var countPages			= 6000;
-var isAsync				= true;
+// Число страниц для загрузки каталога стима. Поставим большое, чтобы точно покрыть всю выборку.
+var countPages			= 7000;
 var updateTimeMinutes	= 30;
 
 // Первый раз грузим каталог сразу, чтобы не ждать по минуте при каждом запуске.
-getPricesFromSteamRender (countPages, isAsync);
+getPricesFromSteamRender (countPages);
 
 var i = 0;
 var refreshIntervalId	= setInterval (function ()
@@ -58,7 +57,7 @@ var refreshIntervalId	= setInterval (function ()
 
 	//---------------
 	// Запускаем коллбеки получения цен.
-	getPricesFromSteamRender (countPages, isAsync);
+	getPricesFromSteamRender (countPages);
 	//---------------
 
 	/*
@@ -77,24 +76,15 @@ var refreshIntervalId	= setInterval (function ()
  * Получить цены прямо из стима циклом запросов по 100 предметов. Всего ~6000 предметов, 60 запросов.
  * Запрос на "http://steamcommunity.com/market/search/render/?query=".
  */
-function getPricesFromSteamRender (_countPages, _isAsync)
+function getPricesFromSteamRender (_countPages)
 {
 	console.time ('LOADING_PRICES');
-	var promises = [];
+	var result = {};
 	
 	// Проходим цикл из всех страниц.
 	for (pageNumber = 0; pageNumber < _countPages; pageNumber += 100)
 	{
-		var promise = new Promise(function(resolve, reject) {
-			// Эта функция будет вызвана автоматически
-			// В ней можно делать любые асинхронные операции,
-			// А когда они завершатся — нужно вызвать одно из:
-			// resolve(результат) при успешном выполнении
-			// reject(ошибка) при ошибке
-			
-			
 			// Шлем запрос
-			var resultOfThisPromise = {};
 			jQuery.ajax ({
 				url : 'https://steamcommunity.com/market/search/render/?query=&start=' + pageNumber + '&count=100&search_descriptions=0&sort_column=popular&sort_dir=desc&appid=730&category_730_ItemSet%5B%5D=any&category_730_ProPlayer%5B%5D=any&category_730_StickerCapsule%5B%5D=any&category_730_TournamentTeam%5B%5D=any&category_730_Weapon%5B%5D=any',
 				data : {},
@@ -120,14 +110,15 @@ function getPricesFromSteamRender (_countPages, _isAsync)
 							'overview'		: 'nameEnglish:   ' + nameEnglish + "\nnameRussian:   " + nameRussian + "\nNameCombo:     " + nameCombo + "\nPrice:         " + lowest_price + " руб. \nQuantity:      " + quantity + "\nPageNumber:    " + pageNumber
 						};
 						
-						resultOfThisPromise[nameEnglish] = currentObjectData;
-						resultOfThisPromise[nameRussian] = currentObjectData;
-						resultOfThisPromise[nameCombo]	= currentObjectData;
+						result[nameEnglish] = currentObjectData;
+						result[nameRussian] = currentObjectData;
+						result[nameCombo]	= currentObjectData;
 						
 						// НЕ ЗНАЮ КАК ЭТА ХРЕНЬ РАБОТАЕТ, НО В ГУГЛ ХРОМЕ БУДЕТ ВЫВОДИТЬСЯ ОСОБАЯ ТАБЛИЧКА С ПЕРЕМЕННОЙ ЦИКЛА, ОЧЕНЬ УДОБНО И КРАСИВО.
-						console.log ('Loading pages (' + _countPages + ')...');
+						// Вроде понял, табличка со переменной цикла выводится при одинаковых консольных сообщениях.
 						
-						//alert (resultOfThisPromise[nameRussian][nameEnglish] + " -  count:" + resultOfThisPromise[nameRussian][lowest_price] + ". quantity:" + resultOfThisPromise[nameRussian][quantity]);
+						//console.log ('Pages loading: ' + (pageNumber + 100) + '/' + _countPages);
+						console.log ('Pages loading (' + _countPages + ').');
 					});
 				},
 				error : function (data)
@@ -136,19 +127,17 @@ function getPricesFromSteamRender (_countPages, _isAsync)
 				},
 				complete : function (data)
 				{
-					resolve (resultOfThisPromise);
+					// nothing
 				},
 				type : 'GET',
 				dataType : 'json',
-				async : _isAsync
+				async : false
 			});
-		});
-		
-		promises.push (promise);
 	}
 	
-	// Обрабатываем результаты выполнения ВСЕХ промисов.
-	Promise.all(promises).then(promisesResultsHandler);
+
+	console.time ('LOADING_PRICES');
+	promisesResultsHandler (result);
 }
 
 /**
@@ -201,7 +190,8 @@ function printPrices (_pricesAfterMerge)
 
 function promisesResultsHandler (_results)
 {
-	var pricesDone = mergePromisesResults (_results);
+	//var pricesDone = mergePromisesResults (_results);
+	var pricesDone = _results;
 	
 	//alert ('pricesDone: ' + JSON.stringify (pricesDone));
 	//printPrices (pricesDone);
