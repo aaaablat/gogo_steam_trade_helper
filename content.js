@@ -18,6 +18,7 @@
 // - DONE - Сделать подгрузку инфы СРАЗУ О ВСЕХ предметах на странице.
 // - Сделать кнопку для прогрузки реальных цен магазина и предметов на странице, чтобы сразу авидеть наиболее прибыльный предмет.
 // - Сделать сортировку по реальному профиту. Ибо встроенная сортировка фигня.
+// - Сделать автоматическую покупку предмета, если объем > 1000, а цена < 55% от стима.
 // 
 
 /**
@@ -409,7 +410,15 @@ function replaceItemWearRussianToEnglish (_str)
 		.replace ('Немного поношенное',			'Minimal Wear')
 		.replace ('После полевых испытаний',	'Field-Tested')
 		.replace ('Поношенное',					'Well-Worn')
-		.replace ('Закаленное в боях',			'Battle-Scarred');
+		.replace ('Закаленное в боях',			'Battle-Scarred')
+		.replace ('Наклейка',					'Sticker')
+		.replace ('Именной ярлык',				'Name Tag')
+		.replace ('Набор музыки',				'Music Kit')
+		.replace (' (Ключ)',					'')
+		.replace (' (Набор музыки)',			'')
+		.replace (' (Наклейка)',				'')
+		.replace (' (Подарок)',					'')
+		.replace (' (Инструмент)',				'');
 }
 
 
@@ -431,7 +440,7 @@ function replaceItemWearRussianToEnglish (_str)
 function mainContent ()
 {
     // Скрипт работает только на csgo.tm/item/*
-    if (document.location.toString ().match (/^https:\/\/csgo\.tm\/item\//i))
+    if (document.location.toString ().match (/^https:\/\/market\.csgo\.com\/item\//i))
     {
 		// Запрашиваем у background.js информацию о ценах.
 		chrome.runtime.sendMessage({target: "getMePrices"}, function(response) {
@@ -444,7 +453,7 @@ function mainContent ()
     }
 	
 	// Страница со списком товаров (пока только отсортированных по выгоде).
-	else if (document.location.toString ().match (/^https:\/\/csgo\.tm\/.*rs=[0-9\.]+;[0-9\.]+(&search=.+)?$/i))
+	else if (document.location.toString ().match (/^https:\/\/market\.csgo\.com\/.*rs=[0-9\.]+;[0-9\.]+(&search=.+)?$/i))
 	{
 		// Запрашиваем у background.js информацию о ценах.
 		chrome.runtime.sendMessage({target: "getMePrices"}, function(response) {
@@ -460,33 +469,93 @@ function mainContent ()
 			});
 			
 			// Проходимся по всем предметам на странице и показываем их профит.
-			var itemNumber = -1;
+			var itemNumber1 = -1;
 			$('.item.hot > div.name').each(function (i)
 			{
-				++itemNumber;
+				++itemNumber1;
 				var itemName		= replaceItemWearRussianToEnglish ($(this).text ().trim ());
-				var itemPriceShop	= pricesShop[itemNumber];
+				var itemPriceShop	= pricesShop[itemNumber1];
 				
 				if (prices[itemName] != undefined)
 				{
 					var itemPriceReal	= prices[itemName]['lowest_price'];
+					var itemValue		= prices[itemName]['quantity'];
 					var itemPrifitHtml	= getColorPercentageProfitHtmlString (itemPriceShop, itemPriceReal);
 
 					$(this).html (itemPrifitHtml + ' - ' + '#' + itemName + '#');
-					pricesReal[itemNumber] = itemPriceReal;
+					pricesReal[itemNumber1] = itemPriceReal;
+					
+					// Цветные рамки
+					/*
+					var color = '';
+					if (itemValue >= 200)
+					{
+						color = 'yellow';
+					}
+					else if (itemValue >= 500)
+					{
+						color = 'green';
+					}
+					else if (itemValue >= 1000)
+					{
+						color = 'blue';
+					}
+					*/
+					
+					// Сначала скроем вообще все:
+					$(this).parent ().css({"opacity":"0.5"});
+					var percentProfit = getRoi (itemPriceShop, itemPriceReal) - 100;
+					
+					// Рамки в зависимости от профита:
+					if (percentProfit >= 30 || itemName.indexOf('key') > -1)
+					{
+						// Если профит больше 30%, просто покажем предмет
+						$(this).parent ().css({"opacity":"1"});
+					}
+					if (percentProfit >= 40)
+					{
+						$(this).parent ().find ('div.imageblock').css({"border-color": 'green', "border-width":"3px", "border-style":"solid"});
+						$(this).parent ().css({"opacity":"1"});
+					}
+					if (percentProfit >= 50)
+					{
+						$(this).parent ().find ('div.imageblock').css({"border-color": 'blue', "border-width":"4px", "border-style":"solid"});
+						$(this).parent ().css({"opacity":"1"});
+					}
+					if (percentProfit >= 60)
+					{
+						$(this).parent ().find ('div.imageblock').css({"border-color": 'DarkViolet', "border-width":"5px", "border-style":"solid"});
+						$(this).parent ().css({"opacity":"1"});
+					}
+					
+					// Рамки в зависимости от объема:
+					if (itemValue >= 100)
+					{
+						$(this).parent ().find ('div.name').css({"border-color": 'green', "border-width":"2px", "border-style":"dotted"});
+					}
+					if (itemValue >= 200)
+					{
+						$(this).parent ().find ('div.name').css({"border-color": 'blue', "border-width":"3px", "border-style":"dotted"});
+					}
+					if (itemValue >= 500)
+					{
+						$(this).parent ().find ('div.name').css({"border-color": 'DarkViolet', "border-width":"4px", "border-style":"dotted"});
+					}
+					
+					// Если профит меньше 20%, или количество продаж меньше 100, скрываем предмет
 				}
 				else
 				{
-					pricesReal[itemNumber] = '???';
+					pricesReal[itemNumber1] = '???';
 				}
 			});
 			
 			// Проходимся по ценам еще раз, чтобы добавить цену стима рядом.
-			var itemNumberNew = 0;
+			var itemNumber2 = 0;
 			$('div.imageblock > div.price').each(function (i)
 			{
 				var prrrr = parseFloat ($(this).text ().replace ('.', ','));
-				$(this).html (prrrr + ' / ' + pricesReal[itemNumberNew++]);
+				$(this).html (prrrr + ' / ' + pricesReal[itemNumber2++]);
 			});
 		});
 	}
@@ -625,15 +694,24 @@ function pricesHandler (_results)
 		+ '<table class="info_table">'
 		+ '<tr><td colspan=4 class="center">"<b><span id="englishname">UNKNOWN</span></b>".</td>'
 
-		+ '<tr><td colspan=2></td><td colspan=2 class="center"><a id="steamPageUrl" class="market_link" target="_blank" href="UNKNOWN">&gt&gtGO TO THE MARKET&lt&lt</a></td></tr>'
+		+ '<tr><td class="center" colspan=2>'
+		+ '<a id="bitskinsUrl" class="market_link" target="_blank" href="UNKNOWN">&gt&gtGO TO THE BS&lt&lt</a>'
+		+ '<a id="opsUrl" class="market_link" target="_blank" href="UNKNOWN">&gt&gtGO TO THE OPS&lt&lt</a>'
+		+ '</td>'
+		+ '<td colspan=2 class="center"><a id="steamPageUrl" class="market_link" target="_blank" href="UNKNOWN">&gt&gtGO TO THE STEAM&lt&lt</a></td></tr>'
 		+ '<tr><td colspan=4 class="center"><b>ЦЕНА:</b></td></tr>'
 
-		+ '<tr><td>Минимальная:<br><b><span id="lowest_price_1">UNKNOWN</span> руб.</b></td>'
-		+ '<td>Средняя:<br><span id="average_price_sell">UNKNOWN</span> руб.</td>'
-		+ '<td>Автовыкуп:<br><b><span id="best_price_buy">UNKNOWN</span> руб.</b></td>'
-		+ '<td>Средняя автовыкупа:<br><span id="average_price_buy">UNKNOWN</span> руб.</td></tr>'
+		+ '<tr><td class="center">Минимальная:<br><b><span id="lowest_price_1">UNKNOWN</span> руб.</b></td>'
+		+ '<td class="center">Средняя:<br><span id="average_price_sell">UNKNOWN</span> руб.</td>'
+		+ '<td class="center">Автовыкуп:<br><b><span id="best_price_buy">UNKNOWN</span> руб.</b></td>'
+		+ '<td class="center">Средняя:<br><span id="average_price_buy">UNKNOWN</span> руб.</td></tr>'
 
-		+ '<tr><td>diff: <b><span id="diff_1">UNKNOWN</span>%</b></td>'
+		+ '<tr><td class="center"><span id="lowest_price_1_real">UNKNOWN</span> руб.</b></td>'
+		+ '<td class="center"><span id="average_price_sell_real">UNKNOWN</span> руб.</td>'
+		+ '<td class="center"><span id="best_price_buy_real">UNKNOWN</span> руб.</b></td>'
+		+ '<td class="center"><span id="average_price_buy_real">UNKNOWN</span> руб.</td></tr>'
+
+		+ '<tr><td>diff_av: <b><span id="diff_1">UNKNOWN</span>%</b></td>'
 		+ '<td>diff_auto: <b><span id="diff_auto">UNKNOWN</span>%</b></td>'
 		+ '<td colspan=2 class="center">diff: <b><span id="diff_2">UNKNOWN</span>%</b></td></tr>'
 
@@ -650,6 +728,16 @@ function pricesHandler (_results)
 		+ '<tr><td colspan=2>Прибыль чистыми с автовыкупа:</td>'
 		+ '<td><b><span id="cost_profit_part_1_fast">UNKNOWN</span></b></td>'
 		+ '<td><b>(<span id="cost_profit_part_2_fast">UNKNOWN</span>)</b></td></tr>'
+		
+		+ '<tr><td colspan=2></td><td colspan=2><br></td></tr>'
+		+ '<tr><td colspan=4 class="center"><b>ПЕРЕПРОДАЖА:</b></td></tr>'
+		+ '<tr><td colspan=2 class="center">Обычная:</td><td colspan=2 class="center">Автовыкуп:</td></tr>'
+		+ '<tr>'
+			+ '<td class="center"><b><span id="resell_normal_part_1">UNKNOWN</span></b></td>'
+			+ '<td class="center"><b><span id="resell_normal_part_2">UNKNOWN</span></b></td>'
+			+ '<td class="center"><b><span id="resell_fast_part_1">UNKNOWN</span></b></td>'
+			+ '<td class="center"><b><span id="resell_fast_part_2">UNKNOWN</span></b></td>'
+		+ '</tr>'
 
 		+ '</table>'
 		+ ''
@@ -676,11 +764,15 @@ function pricesHandler (_results)
 	var diff_auto = (lowest_price_1 / best_price_buy * 100) - 100;
 
 
-	document.getElementById ('average_price_sell').innerHTML = average_price_sell.toFixed (2);
 	document.getElementById ('lowest_price_1').innerHTML = lowest_price_1;
+	document.getElementById ('lowest_price_1_real').innerHTML = (lowest_price_1 * 0.85).toFixed (2);
+	document.getElementById ('average_price_sell').innerHTML = average_price_sell.toFixed (2);
+	document.getElementById ('average_price_sell_real').innerHTML = (average_price_sell * 0.85).toFixed (2);
 
 	document.getElementById ('average_price_buy').innerHTML = average_price_buy.toFixed (2);
+	document.getElementById ('average_price_buy_real').innerHTML = (average_price_buy * 0.85).toFixed (2);
 	document.getElementById ('best_price_buy').innerHTML = best_price_buy;
+	document.getElementById ('best_price_buy_real').innerHTML = (best_price_buy * 0.85).toFixed (2);
 
 	document.getElementById ('diff_1').innerHTML = diff_1.toFixed (2);
 	document.getElementById ('diff_2').innerHTML = diff_2.toFixed (2);
@@ -692,6 +784,12 @@ function pricesHandler (_results)
 	
 	// И ссылку на страницу торговой площадки стима с предметом.
 	document.getElementById ('steamPageUrl').setAttribute ('href', 'http://steamcommunity.com/market/listings/730/' + encodeURIComponent (itemObject['nameEnglish']));
+	
+	// Ссылку на OPSKINS и BITSKINS
+	document.getElementById ('opsUrl').setAttribute ('href', 'https://ru.opskins.com/?loc=shop_search&app=730_2&search_item=' + encodeURIComponent (itemObject['nameEnglish']) + '&sort=lh');
+	document.getElementById ('bitskinsUrl').setAttribute ('href', 'https://bitskins.com/?market_hash_name=' + encodeURIComponent (itemObject['nameEnglish']) + '&sort_by=price&order=asc');
+	
+	
 
 	//-------------------------------------------
 	// Отображаем цену и количество имеющихся в продаже предметов (из поиска).
@@ -717,6 +815,15 @@ function pricesHandler (_results)
 	// Изменяем цвета в зависимости от того, является ли сделка прибыльной.
 	roi > 100 ? $ ('#cost_profit_part_1').css ({'color' : 'green'}) : $ ('#cost_profit_part_1').css ({'color' : 'red'});
 	roiFast > 100 ? $ ('#cost_profit_part_1_fast').css ({'color' : 'green'}) : $ ('#cost_profit_part_1_fast').css ({'color' : 'red'});
+	
+	//--------------------
+	// Перепродажа ключами.
+	var resellInfoNormal	= getResellFromSomeSteamPrice (infoDirect.sell_order_table_info.min_price, costShop);
+	var resellInfoFast		= getResellFromSomeSteamPrice (infoDirect.buy_order_table_info.max_price, costShop);
+	document.getElementById ('resell_normal_part_1').innerHTML = resellInfoNormal.profitResellPercent;
+	document.getElementById ('resell_normal_part_2').innerHTML = resellInfoNormal.profitResellMoney;
+	document.getElementById ('resell_fast_part_1').innerHTML = resellInfoFast.profitResellPercent;
+	document.getElementById ('resell_fast_part_2').innerHTML = resellInfoFast.profitResellMoney;
 }
 
 function getRoi (_shopPrice, _lowestPrice)
@@ -737,4 +844,30 @@ function getColorPercentageProfitHtmlString (_shopPrice, _lowestPrice)
 	var html = '<span style="font-weight: bold; font-size: 17px; color: ' + color + ';">' + (roi - 100).toFixed (0) + "%" + '</span>';
 	
 	return html;
+}
+
+function getColorHtmlString (_number, _comparison, _displayInfo)
+{
+	var color = (parseFloat (_number) > parseFloat (_comparison) ? 'green' : 'red');
+	return '<span style="font-weight: bold; color: ' + color + ';">' + _displayInfo + '</span>';
+}
+
+/**
+ * Получить данные о перепродаже ключами для данной цены предмета на торговой площадке стима.
+ * 
+ * _steamMarketPrice - lowest_price или же fast_price.
+ */
+function getResellFromSomeSteamPrice (_steamMarketPrice, _shopPrice)
+{
+	// Деньги, которые я смогу вывести на wm.
+	//var moneyOut = parseFloat (_steamMarketPrice) * (0.75 * 0.9 * 0.95);
+	//var moneyOut = parseFloat (_steamMarketPrice) * (0.85 * 0.75 * 0.9);
+	var moneyOut = parseFloat (_steamMarketPrice) * (0.15 * 0.75 * 0.9 * 0.95);// 0.75 от маркета - цена для покупателя на csgo.tm, 0.9 - комиссия при продаже, 0.95 - комиссия на вывод оттуда.
+	var profitResellPercent	= (moneyOut / parseFloat (_shopPrice)) - 1;
+	var profitResellMoney	= profitResellPercent * parseFloat (_shopPrice);
+
+	return {
+		'profitResellPercent'	: getColorHtmlString (profitResellPercent, 0, (profitResellPercent * 100).toFixed (2) + '%'),
+		'profitResellMoney'		: (profitResellMoney).toFixed (2) + ' руб'
+	};
 }
